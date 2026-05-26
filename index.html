@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>專案進度追蹤</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#151820; --surface2:#1c2030; --surface3:#222840;
+    --border:#252a3a; --accent:#4f8ef7; --accent2:#a78bfa;
+    --green:#34d399; --yellow:#fbbf24; --red:#f87171;
+    --text:#e2e8f0; --text-muted:#64748b; --text-dim:#94a3b8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+  /* ── Tab nav ── */
+  .tab-nav{display:flex;align-items:center;gap:0;padding:1.5rem 2rem 0;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:50;}
+  .tab-btn{font-family:'Noto Sans TC',sans-serif;font-size:.85rem;font-weight:500;color:var(--text-muted);background:transparent;border:none;border-bottom:2px solid transparent;padding:.65rem 1.2rem;cursor:pointer;transition:all .15s;margin-bottom:-1px;}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab-btn:hover:not(.active){color:var(--text);}
+  .tab-spacer{flex:1;}
+  .btn-add{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:.5rem 1.05rem;font-size:.82rem;font-family:'Noto Sans TC',sans-serif;font-weight:500;cursor:pointer;transition:opacity .15s;margin-bottom:.5rem;}
+  .btn-add:hover{opacity:.85;}
+
+  /* ── Pages ── */
+  .page{display:none;padding:2rem;}
+  .page.active{display:block;}
+
+  /* ── Projects page header ── */
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2rem;}
+  .page-header h2{font-size:1.3rem;font-weight:700;letter-spacing:-.02em;}
+  .page-header p{font-size:.78rem;color:var(--text-muted);margin-top:.2rem;font-family:'DM Mono',monospace;}
+
+  /* ── Cards ── */
+  .projects-grid{display:flex;flex-direction:column;gap:1.25rem;}
+  .project-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .2s;}
+  .project-card:hover{border-color:#2e3650;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;cursor:pointer;user-select:none;}
+  .card-header-left{display:flex;align-items:center;gap:.75rem;}
+  .card-title{font-size:.95rem;font-weight:600;}
+  .card-subtitle{font-size:.75rem;color:var(--text-muted);margin-top:.1rem;}
+  .chevron{color:var(--text-muted);transition:transform .2s;font-size:.75rem;}
+  .chevron.open{transform:rotate(90deg);}
+  .card-body{display:none;padding:0 1.25rem 1.25rem;border-top:1px solid var(--border);}
+  .card-body.open{display:block;}
+
+  /* ── Status dot ── */
+  .status-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .dot-green{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .dot-yellow{background:var(--yellow);box-shadow:0 0 6px var(--yellow);}
+  .dot-blue{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+  .dot-gray{background:var(--text-muted);}
+
+  /* ── Card columns ── */
+  .card-columns{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;padding-top:1.1rem;}
+  @media(max-width:640px){.card-columns{grid-template-columns:1fr;}}
+  .section-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:.7rem;}
+
+  /* ── Phase list ── */
+  .phase-list{display:flex;flex-direction:column;gap:.45rem;}
+  .phase-item{display:flex;align-items:flex-start;gap:.6rem;padding:.5rem .7rem;border-radius:8px;background:var(--surface2);border:1px solid transparent;}
+  .phase-item.active{border-color:var(--accent);background:rgba(79,142,247,.07);}
+  .phase-item.done{border-color:#1d3a2c;background:rgba(52,211,153,.05);}
+  .phase-main{display:flex;align-items:center;gap:.5rem;flex:1;min-width:0;}
+  .phase-name{font-size:.8rem;color:var(--text-dim);flex:1;}
+  .phase-item.done .phase-name{color:var(--green);}
+  .phase-item.active .phase-name{color:var(--text);font-weight:500;}
+  .phase-due{font-size:.68rem;font-family:'DM Mono',monospace;color:var(--accent2);white-space:nowrap;margin-top:.15rem;}
+  .phase-tag{font-size:.68rem;font-family:'DM Mono',monospace;padding:.15rem .45rem;border-radius:4px;white-space:nowrap;flex-shrink:0;}
+  .tag-done{background:rgba(52,211,153,.12);color:var(--green);}
+  .tag-active{background:rgba(79,142,247,.12);color:var(--accent);}
+  .tag-pending{background:rgba(100,116,139,.12);color:var(--text-muted);}
+
+  /* ── Shoot / info cards ── */
+  .shoot-dates-list{display:flex;flex-direction:column;gap:.45rem;}
+  .shoot-date-item{display:flex;align-items:center;gap:.55rem;padding:.45rem .7rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);}
+  .shoot-date-lbl{font-size:.72rem;color:var(--text-muted);}
+  .shoot-date-val{font-size:.82rem;font-family:'DM Mono',monospace;color:var(--accent2);font-weight:500;flex:1;}
+  .shoot-date-note{font-size:.72rem;color:var(--text-muted);font-style:italic;}
+  .info-card-list{display:flex;flex-direction:column;gap:.45rem;}
+  .info-card{padding:.5rem .7rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);}
+  .info-card-title{font-size:.8rem;color:var(--text);font-weight:500;margin-bottom:.3rem;}
+  .info-card-row{display:flex;align-items:center;gap:.4rem;margin-top:.2rem;}
+  .info-card-key{font-size:.68rem;color:var(--text-muted);min-width:50px;}
+  .info-card-val{font-size:.75rem;color:var(--text-dim);font-family:'DM Mono',monospace;}
+  .info-card-img-link{font-size:.72rem;color:var(--accent);text-decoration:none;}
+  .info-card-img-link:hover{text-decoration:underline;}
+
+  /* ── Finance ── */
+  .finance-block{display:flex;flex-direction:column;gap:.55rem;}
+  .finance-row{display:flex;flex-direction:column;gap:.25rem;padding:.55rem .7rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);}
+  .finance-row-title{font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:.4rem;}
+  .finance-row-val{font-size:.85rem;font-family:'DM Mono',monospace;font-weight:500;}
+  .finance-row-val.amount{color:var(--yellow);}
+  .finance-row-val.po-num{color:var(--accent2);font-size:.78rem;}
+  .check-icon{color:var(--green);}
+  .empty-val{font-size:.78rem;color:var(--text-muted);font-style:italic;}
+
+  /* ── Card buttons ── */
+  .edit-btn{font-size:.72rem;padding:.25rem .6rem;border-radius:5px;background:transparent;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:all .15s;}
+  .edit-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .del-btn{font-size:.72rem;padding:.25rem .6rem;border-radius:5px;background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:all .15s;margin-left:.3rem;}
+  .del-btn:hover{border-color:var(--red);color:var(--red);}
+
+  /* ── Modal ── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;align-items:center;justify-content:center;padding:1rem;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;}
+  .modal h2{font-size:1rem;font-weight:700;margin-bottom:1.25rem;}
+  .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+  .modal-grid.full{grid-template-columns:1fr;}
+  @media(max-width:480px){.modal-grid{grid-template-columns:1fr;}}
+  .form-group{display:flex;flex-direction:column;gap:.35rem;}
+  .form-group label{font-size:.73rem;color:var(--text-muted);font-weight:500;}
+  .form-group input,.form-group select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;font-size:.82rem;color:var(--text);font-family:'Noto Sans TC',sans-serif;outline:none;transition:border-color .15s;}
+  .form-group input:focus,.form-group select:focus{border-color:var(--accent);}
+  .form-group select option{background:var(--surface2);}
+  .divider{height:1px;background:var(--border);margin:1rem 0;}
+  .section-divider-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:.75rem;margin-top:.5rem;}
+  .dynamic-list{display:flex;flex-direction:column;gap:.5rem;}
+  .dynamic-row{display:flex;align-items:flex-start;gap:.5rem;background:var(--surface3);border:1px solid var(--border);border-radius:10px;padding:.6rem .7rem;}
+  .dynamic-row-fields{flex:1;display:flex;flex-direction:column;gap:.4rem;}
+  .row-line{display:flex;gap:.4rem;align-items:center;}
+  .row-line input{flex:1;}
+  .row-line select{width:auto;min-width:90px;}
+  .row-line label{font-size:.7rem;color:var(--text-muted);white-space:nowrap;flex-shrink:0;}
+  .btn-remove-row{background:transparent;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:.1rem .3rem;border-radius:5px;transition:color .15s;flex-shrink:0;margin-top:.15rem;}
+  .btn-remove-row:hover{color:var(--red);}
+  .btn-add-row{background:transparent;border:1px dashed var(--border);color:var(--text-muted);border-radius:8px;padding:.4rem .8rem;font-size:.78rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:all .15s;margin-top:.25rem;width:100%;text-align:center;}
+  .btn-add-row:hover{border-color:var(--accent);color:var(--accent);}
+  .row-num{font-size:.68rem;color:var(--text-muted);font-family:'DM Mono',monospace;min-width:1.2rem;margin-top:.3rem;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.25rem;}
+  .btn-cancel{background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:.5rem 1rem;font-size:.82rem;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:all .15s;}
+  .btn-cancel:hover{border-color:var(--text-muted);color:var(--text);}
+  .btn-save{background:var(--accent);border:none;color:#fff;border-radius:8px;padding:.5rem 1.2rem;font-size:.82rem;font-family:'Noto Sans TC',sans-serif;font-weight:600;cursor:pointer;transition:opacity .15s;}
+  .btn-save:hover{opacity:.85;}
+
+  .empty-state{text-align:center;padding:3rem 1rem;color:var(--text-muted);font-size:.85rem;}
+  .empty-state .big{font-size:2rem;margin-bottom:.5rem;}
+  .no-items{font-size:.75rem;color:var(--text-muted);font-style:italic;padding:.3rem 0;}
+
+  /* ══ Calendar page ══ */
+  .cal-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;}
+  .cal-header h2{font-size:1.3rem;font-weight:700;letter-spacing:-.02em;}
+  .cal-nav-btn{background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:.35rem .75rem;font-size:.9rem;cursor:pointer;transition:all .15s;line-height:1;}
+  .cal-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .cal-month-label{font-size:1rem;font-weight:600;font-family:'DM Mono',monospace;color:var(--text);min-width:110px;text-align:center;}
+
+  /* Calendar grid */
+  .cal-grid-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--border);}
+  .cal-weekday{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);text-align:center;padding:.6rem .25rem;}
+  .cal-weekday.sun{color:#f87171;}
+  .cal-weekday.sat{color:#60a5fa;}
+  .cal-days{display:grid;grid-template-columns:repeat(7,1fr);}
+  .cal-cell{min-height:90px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:.4rem .35rem;vertical-align:top;display:flex;flex-direction:column;gap:.25rem;}
+  .cal-cell:nth-child(7n){border-right:none;}
+  .cal-cell.other-month .cal-day-num{color:var(--border);}
+  .cal-cell.today .cal-day-num{background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+  .cal-day-num{font-size:.75rem;font-family:'DM Mono',monospace;color:var(--text-muted);width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .cal-cell.sun .cal-day-num{color:#f87171;}
+  .cal-cell.sat .cal-day-num{color:#60a5fa;}
+
+  /* Event chips on calendar */
+  .cal-events{display:flex;flex-direction:column;gap:.2rem;flex:1;}
+  .cal-chip{font-size:.62rem;padding:.12rem .35rem;border-radius:4px;line-height:1.35;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s;font-family:'Noto Sans TC',sans-serif;}
+  .cal-chip:hover{opacity:.75;}
+  /* type colours */
+  .chip-script  {background:rgba(167,139,250,.18);color:#c4b5fd;border-left:2px solid #a78bfa;}
+  .chip-location{background:rgba(52,211,153,.15);color:#6ee7b7;border-left:2px solid #34d399;}
+  .chip-shoot   {background:rgba(251,191,36,.15);color:#fde68a;border-left:2px solid #fbbf24;}
+  .chip-post    {background:rgba(79,142,247,.18);color:#93c5fd;border-left:2px solid #4f8ef7;}
+
+  /* ── Calendar legend ── */
+  .cal-legend{display:flex;gap:1.25rem;flex-wrap:wrap;margin:1rem 0 1.5rem;}
+  .legend-item{display:flex;align-items:center;gap:.4rem;font-size:.72rem;color:var(--text-muted);}
+  .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+  .ld-script  {background:#a78bfa;}
+  .ld-location{background:#34d399;}
+  .ld-shoot   {background:#fbbf24;}
+  .ld-post    {background:#4f8ef7;}
+
+  /* ── Project index below calendar ── */
+  .proj-index{margin-top:2rem;}
+  .proj-index h3{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:.85rem;}
+  .proj-index-list{display:flex;flex-wrap:wrap;gap:.6rem;}
+  .proj-index-tag{display:inline-flex;align-items:center;gap:.5rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem .8rem;font-size:.8rem;cursor:pointer;transition:all .15s;text-decoration:none;color:var(--text);}
+  .proj-index-tag:hover{border-color:var(--accent);color:var(--accent);}
+  .proj-index-tag .pit-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+  /* Event tooltip / popover */
+  .event-pop{position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;max-width:240px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none;display:none;}
+  .event-pop.show{display:block;}
+  .ep-type{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:.3rem;}
+  .ep-proj{font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:.15rem;}
+  .ep-name{font-size:.78rem;color:var(--text-dim);margin-bottom:.2rem;}
+  .ep-time{font-size:.72rem;font-family:'DM Mono',monospace;color:var(--accent2);}
+</style>
+</head>
+<body>
+
+<!-- ── Tab navigation ── -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('projects')">📋 專案列表</button>
+  <button class="tab-btn" onclick="switchTab('calendar')">📅 行事曆</button>
+  <div class="tab-spacer"></div>
+  <button class="btn-add" onclick="openAddModal()">＋ 新增專案</button>
+</div>
+
+<!-- ══ Projects page ══ -->
+<div class="page active" id="page-projects">
+  <div class="page-header">
+    <div>
+      <h2>專案列表</h2>
+      <p>點擊專案展開詳情</p>
+    </div>
+  </div>
+  <div class="projects-grid" id="projects-grid"></div>
+</div>
+
+<!-- ══ Calendar page ══ -->
+<div class="page" id="page-calendar">
+  <div class="cal-header">
+    <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
+    <div class="cal-month-label" id="cal-month-label"></div>
+    <button class="cal-nav-btn" onclick="calNav(1)">›</button>
+    <button class="cal-nav-btn" onclick="calGoToday()" style="margin-left:.5rem;font-size:.78rem;padding:.35rem .65rem">今天</button>
+  </div>
+
+  <div class="cal-legend">
+    <div class="legend-item"><div class="legend-dot ld-script"></div>腳本截止</div>
+    <div class="legend-item"><div class="legend-dot ld-location"></div>勘景日期</div>
+    <div class="legend-item"><div class="legend-dot ld-shoot"></div>拍攝日期</div>
+    <div class="legend-item"><div class="legend-dot ld-post"></div>後期截止</div>
+  </div>
+
+  <div class="cal-grid-wrap">
+    <div class="cal-weekdays">
+      <div class="cal-weekday sun">日</div>
+      <div class="cal-weekday">一</div>
+      <div class="cal-weekday">二</div>
+      <div class="cal-weekday">三</div>
+      <div class="cal-weekday">四</div>
+      <div class="cal-weekday">五</div>
+      <div class="cal-weekday sat">六</div>
+    </div>
+    <div class="cal-days" id="cal-days"></div>
+  </div>
+
+  <!-- Project index -->
+  <div class="proj-index">
+    <h3>專案索引</h3>
+    <div class="proj-index-list" id="proj-index-list"></div>
+  </div>
+</div>
+
+<!-- ── Event popover ── -->
+<div class="event-pop" id="event-pop">
+  <div class="ep-type" id="ep-type"></div>
+  <div class="ep-proj" id="ep-proj"></div>
+  <div class="ep-name" id="ep-name"></div>
+  <div class="ep-time" id="ep-time"></div>
+</div>
+
+<!-- ── Modal ── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title">新增專案</h2>
+    <div class="section-divider-label">基本資訊</div>
+    <div class="modal-grid full"><div class="form-group"><label>專案名稱</label><input id="f-name" type="text" placeholder="例：品牌形象影片 A"></div></div>
+    <div class="modal-grid" style="margin-top:.75rem"><div class="form-group"><label>客戶名稱</label><input id="f-client" type="text" placeholder="例：ABC 公司"></div></div>
+    <div class="divider"></div>
+    <div class="section-divider-label">腳本清單</div>
+    <div class="dynamic-list" id="scripts-list"></div>
+    <button class="btn-add-row" onclick="addScriptRow()">＋ 新增腳本</button>
+    <div class="divider"></div>
+    <div class="section-divider-label">勘景清單</div>
+    <div class="dynamic-list" id="locations-list"></div>
+    <button class="btn-add-row" onclick="addLocationRow()">＋ 新增勘景地點</button>
+    <div class="divider"></div>
+    <div class="section-divider-label">道具準備清單</div>
+    <div class="dynamic-list" id="props-list"></div>
+    <button class="btn-add-row" onclick="addPropRow()">＋ 新增道具</button>
+    <div class="divider"></div>
+    <div class="section-divider-label">拍攝日期</div>
+    <div class="dynamic-list" id="shoot-dates-list"></div>
+    <button class="btn-add-row" onclick="addShootDateRow()">＋ 新增拍攝日</button>
+    <div class="divider"></div>
+    <div class="section-divider-label">後期進度</div>
+    <div class="dynamic-list" id="post-list"></div>
+    <button class="btn-add-row" onclick="addPostRow()">＋ 新增後期項目</button>
+    <div class="divider"></div>
+    <div class="section-divider-label">報價 & 財務</div>
+    <div class="modal-grid">
+      <div class="form-group"><label>報價狀態</label><select id="f-quote-status"><option value="none">尚未報價</option><option value="sent">已提供報價</option></select></div>
+      <div class="form-group"><label>報價金額（NTD）</label><input id="f-quote-amount" type="number" placeholder="例：150000"></div>
+      <div class="form-group"><label>PO 狀態</label><select id="f-po-status"><option value="none">尚未收到</option><option value="received">已收到 PO</option></select></div>
+      <div class="form-group"><label>PO 金額（NTD）</label><input id="f-po-amount" type="number" placeholder="例：150000"></div>
+      <div class="form-group"><label>PO 單號</label><input id="f-po-number" type="text" placeholder="例：PO-2024-0312"></div>
+      <div class="form-group"><label>發票狀態</label><select id="f-invoice-status"><option value="none">尚未寄出</option><option value="sent">已寄出發票</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" onclick="saveProject()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════
+   DATA
+════════════════════════════════ */
+let projects = JSON.parse(localStorage.getItem('proj_tracker_v4') || '[]');
+let editingId = null;
+
+const statusLabel    = { pending:'待進行', active:'進行中', done:'完成' };
+const phaseTagClass  = { pending:'tag-pending', active:'tag-active', done:'tag-done' };
+const phaseItemClass = { pending:'', active:'active', done:'done' };
+
+function save() { localStorage.setItem('proj_tracker_v4', JSON.stringify(projects)); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/* ════════════════════════════════
+   TAB SWITCHING
+════════════════════════════════ */
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (tab === 'calendar') renderCalendar();
+}
+
+/* ════════════════════════════════
+   HELPERS
+════════════════════════════════ */
+function getOverallDot(p) {
+  const post = p.postItems || [];
+  if (post.length && post.every(x => x.status === 'done')) return 'dot-green';
+  if (post.some(x => x.status === 'active')) return 'dot-blue';
+  if ((p.scripts||[]).every(s => s.status === 'done') && p.scripts.length) return 'dot-yellow';
+  if ((p.scripts||[]).some(s => s.status === 'active')) return 'dot-yellow';
+  return 'dot-gray';
+}
+function fmtDate(d) {
+  if (!d) return null;
+  const [y,m,day] = d.split('-');
+  return `${y}/${m}/${day}`;
+}
+function fmtDateTime(d, t) {
+  const ds = fmtDate(d);
+  if (!ds) return null;
+  return t ? `${ds} ${t}` : ds;
+}
+function fmtMoney(n) { return n ? 'NT$ ' + Number(n).toLocaleString() : null; }
+
+function renderFinanceRow(title, hasData, lines) {
+  const icon = hasData ? `<span class="check-icon">✓</span>` : '';
+  const content = hasData
+    ? lines.map(l=>`<div class="finance-row-val ${l.cls||''}">${l.val}</div>`).join('')
+    : `<div class="empty-val">尚未填寫</div>`;
+  return `<div class="finance-row"><div class="finance-row-title">${icon} ${title}</div>${content}</div>`;
+}
+
+/* ════════════════════════════════
+   PROJECTS RENDER
+════════════════════════════════ */
+function renderProjects() {
+  const grid = document.getElementById('projects-grid');
+  if (!projects.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="big">📋</div>尚未新增任何專案<br>點擊上方「＋ 新增專案」開始</div>`;
+    return;
+  }
+  grid.innerHTML = projects.map((p, i) => {
+    const dot = getOverallDot(p);
+    const quoteHas = p.finance.quoteStatus === 'sent';
+    const poHas    = p.finance.poStatus === 'received';
+    const invHas   = p.finance.invoiceStatus === 'sent';
+
+    const scriptsHtml = (p.scripts||[]).length
+      ? `<div class="phase-list">${(p.scripts||[]).map((s,si) => {
+          const dt = fmtDateTime(s.dueDate, s.dueTime);
+          return `<div class="phase-item ${phaseItemClass[s.status]}"><div style="flex:1;display:flex;flex-direction:column;gap:.15rem;">
+            <div class="phase-main"><span class="phase-name">${si+1}. ${esc(s.name)||'腳本 '+(si+1)}</span><span class="phase-tag ${phaseTagClass[s.status]}">${statusLabel[s.status]}</span></div>
+            ${dt?`<div class="phase-due">📅 ${dt}</div>`:''}
+          </div></div>`;}).join('')}</div>`
+      : `<div class="no-items">尚未新增腳本</div>`;
+
+    const locsHtml = (p.locations||[]).length
+      ? `<div class="info-card-list">${(p.locations||[]).map(loc=>`
+          <div class="info-card"><div class="info-card-title">📍 ${esc(loc.place)||'地點未填'}</div>
+          ${loc.date?`<div class="info-card-row"><span class="info-card-key">日期</span><span class="info-card-val">${fmtDate(loc.date)}</span></div>`:''}
+          ${loc.content?`<div class="info-card-row"><span class="info-card-key">拍攝內容</span><span class="info-card-val">${esc(loc.content)}</span></div>`:''}
+          </div>`).join('')}</div>`
+      : `<div class="no-items">尚未新增勘景地點</div>`;
+
+    const propsHtml = (p.props||[]).length
+      ? `<div class="info-card-list">${(p.props||[]).map(pr=>`
+          <div class="info-card"><div class="info-card-title">🎬 ${esc(pr.name)||'道具未填'}</div>
+          ${pr.preparer?`<div class="info-card-row"><span class="info-card-key">準備者</span><span class="info-card-val">${esc(pr.preparer)}</span></div>`:''}
+          ${pr.refUrl?`<div class="info-card-row"><span class="info-card-key">參考圖</span><a class="info-card-img-link" href="${esc(pr.refUrl)}" target="_blank">開啟連結 ↗</a></div>`:''}
+          </div>`).join('')}</div>`
+      : `<div class="no-items">尚未新增道具</div>`;
+
+    const shootHtml = (p.shootDates||[]).length
+      ? `<div class="shoot-dates-list">${(p.shootDates||[]).map((sd,di)=>`
+          <div class="shoot-date-item"><span class="shoot-date-lbl">📅 D${di+1}</span>
+          <span class="shoot-date-val">${fmtDate(sd.date)||'—'}</span>
+          ${sd.note?`<span class="shoot-date-note">${esc(sd.note)}</span>`:''}</div>`).join('')}</div>`
+      : `<div class="no-items">尚未設定拍攝日期</div>`;
+
+    const postHtml = (p.postItems||[]).length
+      ? `<div class="phase-list">${(p.postItems||[]).map(item=>{
+          const dt = fmtDateTime(item.dueDate, item.dueTime);
+          return `<div class="phase-item ${phaseItemClass[item.status]}"><div style="flex:1;display:flex;flex-direction:column;gap:.15rem;">
+            <div class="phase-main"><span class="phase-name">${esc(item.name)||'後期項目'}</span><span class="phase-tag ${phaseTagClass[item.status]}">${statusLabel[item.status]}</span></div>
+            ${dt?`<div class="phase-due">📅 ${dt}</div>`:''}
+          </div></div>`;}).join('')}</div>`
+      : `<div class="no-items">尚未新增後期項目</div>`;
+
+    return `<div class="project-card" id="card-${i}">
+      <div class="card-header" onclick="toggleCard(${i})">
+        <div class="card-header-left"><div class="status-dot ${dot}"></div>
+          <div><div class="card-title">${esc(p.name)}</div><div class="card-subtitle">${esc(p.client)||'—'}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <button class="edit-btn" onclick="event.stopPropagation();openEditModal(${i})">編輯</button>
+          <button class="del-btn"  onclick="event.stopPropagation();deleteProject(${i})">刪除</button>
+          <span class="chevron" id="chevron-${i}">▶</span>
+        </div>
+      </div>
+      <div class="card-body" id="body-${i}">
+        <div class="card-columns">
+          <div>
+            <div class="section-label">腳本</div>${scriptsHtml}
+            <div class="section-label" style="margin-top:.9rem">勘景</div>${locsHtml}
+            <div class="section-label" style="margin-top:.9rem">道具準備</div>${propsHtml}
+            <div class="section-label" style="margin-top:.9rem">拍攝日期</div>${shootHtml}
+            <div class="section-label" style="margin-top:.9rem">後期</div>${postHtml}
+          </div>
+          <div>
+            <div class="section-label">報價 & 財務</div>
+            <div class="finance-block">
+              ${renderFinanceRow('已提供報價', quoteHas, [{val:fmtMoney(p.finance.quoteAmount)||'—',cls:'amount'}])}
+              ${renderFinanceRow('已收到 PO', poHas, [{val:fmtMoney(p.finance.poAmount)||'—',cls:'amount'},{val:p.finance.poNumber||'—',cls:'po-num'}])}
+              ${renderFinanceRow('已寄出發票', invHas, [])}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(i) {
+  document.getElementById('body-'+i).classList.toggle('open');
+  document.getElementById('chevron-'+i).classList.toggle('open');
+}
+
+/* ════════════════════════════════
+   CALENDAR
+════════════════════════════════ */
+const PROJECT_COLORS = [
+  '#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#fb923c','#e879f9','#2dd4bf'
+];
+let calYear, calMonth;
+(function(){const n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth();}());
+
+/* Gather every dated event from all projects */
+function getAllEvents() {
+  const events = [];
+  projects.forEach((p, pi) => {
+    const color = PROJECT_COLORS[pi % PROJECT_COLORS.length];
+    // Scripts
+    (p.scripts||[]).forEach(s => {
+      if (s.dueDate) events.push({date:s.dueDate, time:s.dueTime||'', type:'script', typeLabel:'腳本截止', projIdx:pi, projName:p.name, itemName:s.name||'腳本', color});
+    });
+    // Locations
+    (p.locations||[]).forEach(l => {
+      if (l.date) events.push({date:l.date, time:'', type:'location', typeLabel:'勘景', projIdx:pi, projName:p.name, itemName:l.place||'勘景地點', color});
+    });
+    // Shoot dates
+    (p.shootDates||[]).forEach((sd,di) => {
+      if (sd.date) events.push({date:sd.date, time:'', type:'shoot', typeLabel:'拍攝', projIdx:pi, projName:p.name, itemName:sd.note||`拍攝 D${di+1}`, color});
+    });
+    // Post items
+    (p.postItems||[]).forEach(item => {
+      if (item.dueDate) events.push({date:item.dueDate, time:item.dueTime||'', type:'post', typeLabel:'後期截止', projIdx:pi, projName:p.name, itemName:item.name||'後期項目', color});
+    });
+  });
+  return events;
+}
+
+function calNav(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function calGoToday() {
+  const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth();
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('cal-month-label').textContent = `${calYear} · ${monthNames[calMonth]}`;
+
+  const events = getAllEvents();
+  // Build map: "YYYY-MM-DD" → [events]
+  const evMap = {};
+  events.forEach(ev => {
+    if (!evMap[ev.date]) evMap[ev.date] = [];
+    evMap[ev.date].push(ev);
+  });
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
+
+  let cells = '';
+  // Prev month filler
+  for (let d = firstDay - 1; d >= 0; d--) {
+    const day = daysInPrev - d;
+    cells += `<div class="cal-cell other-month"><div class="cal-day-num">${day}</div></div>`;
+  }
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(calYear, calMonth, d).getDay();
+    const isToday = dateStr === todayStr;
+    const dowClass = dow===0?' sun':dow===6?' sat':'';
+    const todayClass = isToday?' today':'';
+    const dayEvs = (evMap[dateStr]||[]).sort((a,b)=>a.time.localeCompare(b.time));
+    const chipsHtml = dayEvs.map((ev,ei) => {
+      const label = ev.time ? `${ev.time} ${ev.itemName}` : ev.itemName;
+      return `<div class="cal-chip chip-${ev.type}" 
+        onmouseenter="showPop(event,${ev.projIdx},'${esc(ev.typeLabel)}','${esc(ev.projName)}','${esc(ev.itemName)}','${ev.date}','${ev.time}')"
+        onmouseleave="hidePop()"
+        onclick="jumpToProject(${ev.projIdx})"
+        title="${esc(ev.projName)} – ${esc(ev.itemName)}"
+      >${esc(label)}</div>`;
+    }).join('');
+    cells += `<div class="cal-cell${dowClass}${todayClass}">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-events">${chipsHtml}</div>
+    </div>`;
+  }
+  // Next month filler
+  const totalCells = firstDay + daysInMonth;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let d = 1; d <= remaining; d++) {
+    cells += `<div class="cal-cell other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+
+  document.getElementById('cal-days').innerHTML = cells;
+
+  // Project index
+  const idx = document.getElementById('proj-index-list');
+  if (!projects.length) {
+    idx.innerHTML = `<span style="font-size:.8rem;color:var(--text-muted)">尚未新增任何專案</span>`;
+    return;
+  }
+  idx.innerHTML = projects.map((p,i) => {
+    const dot = getOverallDot(p);
+    const dotColor = dot==='dot-green'?'var(--green)':dot==='dot-yellow'?'var(--yellow)':dot==='dot-blue'?'var(--accent)':'var(--text-muted)';
+    return `<a class="proj-index-tag" onclick="jumpToProject(${i})">
+      <span class="pit-dot" style="background:${dotColor}"></span>
+      ${esc(p.name)}${p.client?` <span style="font-size:.72rem;color:var(--text-muted)">/ ${esc(p.client)}</span>`:''}
+    </a>`;
+  }).join('');
+}
+
+function jumpToProject(i) {
+  // switch to projects tab, open that card
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-projects').classList.add('active');
+  document.querySelectorAll('.tab-btn')[0].classList.add('active');
+  setTimeout(() => {
+    const card = document.getElementById('card-'+i);
+    if (card) {
+      card.scrollIntoView({behavior:'smooth', block:'center'});
+      // open it
+      const body = document.getElementById('body-'+i);
+      const chev = document.getElementById('chevron-'+i);
+      if (body && !body.classList.contains('open')) {
+        body.classList.add('open');
+        if (chev) chev.classList.add('open');
+      }
+      card.style.outline = '2px solid var(--accent)';
+      setTimeout(() => { card.style.outline = ''; }, 1800);
+    }
+  }, 50);
+}
+
+/* Tooltip */
+function showPop(e, projIdx, typeLabel, projName, itemName, date, time) {
+  const pop = document.getElementById('event-pop');
+  document.getElementById('ep-type').textContent = typeLabel;
+  document.getElementById('ep-proj').textContent = projName;
+  document.getElementById('ep-name').textContent = itemName;
+  const [y,m,d] = date.split('-');
+  document.getElementById('ep-time').textContent = time ? `${y}/${m}/${d} ${time}` : `${y}/${m}/${d}`;
+  pop.classList.add('show');
+  movePop(e);
+}
+function movePop(e) {
+  const pop = document.getElementById('event-pop');
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + 250 > window.innerWidth)  x = e.clientX - 250;
+  if (y + 120 > window.innerHeight) y = e.clientY - 120;
+  pop.style.left = x + 'px';
+  pop.style.top  = y + 'px';
+}
+function hidePop() { document.getElementById('event-pop').classList.remove('show'); }
+document.addEventListener('mousemove', e => { if (document.getElementById('event-pop').classList.contains('show')) movePop(e); });
+
+/* ════════════════════════════════
+   DYNAMIC ROW BUILDERS
+════════════════════════════════ */
+function addScriptRow(name='', status='pending', dueDate='', dueTime='') {
+  const list = document.getElementById('scripts-list');
+  const div = document.createElement('div'); div.className='dynamic-row';
+  div.innerHTML=`<span class="row-num">${list.children.length+1}</span>
+    <div class="dynamic-row-fields">
+      <div class="row-line">
+        <input type="text" placeholder="腳本名稱（例：版本A）" value="${esc(name)}">
+        <select><option value="pending" ${status==='pending'?'selected':''}>待進行</option><option value="active" ${status==='active'?'selected':''}>進行中</option><option value="done" ${status==='done'?'selected':''}>完成</option></select>
+      </div>
+      <div class="row-line"><label>預計提供</label><input type="date" value="${dueDate}" style="flex:0 0 auto;width:145px"><input type="time" value="${dueTime}" style="flex:0 0 auto;width:105px"></div>
+    </div>
+    <button class="btn-remove-row" onclick="removeRow(this,'scripts-list')">✕</button>`;
+  list.appendChild(div); renumber('scripts-list',false);
+}
+function addLocationRow(place='', date='', content='') {
+  const list = document.getElementById('locations-list');
+  const div = document.createElement('div'); div.className='dynamic-row';
+  div.innerHTML=`<span class="row-num">${list.children.length+1}</span>
+    <div class="dynamic-row-fields">
+      <div class="row-line"><input type="text" placeholder="地點（例：台北車站前廣場）" value="${esc(place)}" style="flex:2"><input type="date" value="${date}" style="flex:0 0 auto;width:145px"></div>
+      <div class="row-line"><label>拍攝內容</label><input type="text" placeholder="例：對話場景、開場鏡頭" value="${esc(content)}"></div>
+    </div>
+    <button class="btn-remove-row" onclick="removeRow(this,'locations-list')">✕</button>`;
+  list.appendChild(div); renumber('locations-list',false);
+}
+function addPropRow(name='', preparer='', refUrl='') {
+  const list = document.getElementById('props-list');
+  const div = document.createElement('div'); div.className='dynamic-row';
+  div.innerHTML=`<span class="row-num">${list.children.length+1}</span>
+    <div class="dynamic-row-fields">
+      <div class="row-line"><input type="text" placeholder="道具名稱（例：古董電話）" value="${esc(name)}" style="flex:2"><input type="text" placeholder="準備者" value="${esc(preparer)}" style="flex:1;min-width:80px"></div>
+      <div class="row-line"><label>參考圖</label><input type="url" placeholder="圖片或連結 URL" value="${esc(refUrl)}"></div>
+    </div>
+    <button class="btn-remove-row" onclick="removeRow(this,'props-list')">✕</button>`;
+  list.appendChild(div); renumber('props-list',false);
+}
+function addShootDateRow(date='', note='') {
+  const list = document.getElementById('shoot-dates-list');
+  const div = document.createElement('div'); div.className='dynamic-row';
+  div.innerHTML=`<span class="row-num">D${list.children.length+1}</span>
+    <div class="dynamic-row-fields">
+      <div class="row-line"><input type="date" value="${date}" style="flex:0 0 auto;width:155px"><input type="text" placeholder="備註（例：室內場景）" value="${esc(note)}" style="flex:1"></div>
+    </div>
+    <button class="btn-remove-row" onclick="removeRow(this,'shoot-dates-list')">✕</button>`;
+  list.appendChild(div); renumber('shoot-dates-list',true);
+}
+function addPostRow(name='', status='pending', dueDate='', dueTime='') {
+  const list = document.getElementById('post-list');
+  const div = document.createElement('div'); div.className='dynamic-row';
+  div.innerHTML=`<span class="row-num">${list.children.length+1}</span>
+    <div class="dynamic-row-fields">
+      <div class="row-line">
+        <input type="text" placeholder="項目名稱（例：第一版、修改版）" value="${esc(name)}">
+        <select><option value="pending" ${status==='pending'?'selected':''}>待進行</option><option value="active" ${status==='active'?'selected':''}>進行中</option><option value="done" ${status==='done'?'selected':''}>完成</option></select>
+      </div>
+      <div class="row-line"><label>預計提供</label><input type="date" value="${dueDate}" style="flex:0 0 auto;width:145px"><input type="time" value="${dueTime}" style="flex:0 0 auto;width:105px"></div>
+    </div>
+    <button class="btn-remove-row" onclick="removeRow(this,'post-list')">✕</button>`;
+  list.appendChild(div); renumber('post-list',false);
+}
+
+function removeRow(btn, listId) {
+  btn.closest('.dynamic-row').remove();
+  renumber(listId, listId==='shoot-dates-list');
+}
+function renumber(listId, isShoot) {
+  Array.from(document.getElementById(listId).children).forEach((row,i)=>{
+    const n=row.querySelector('.row-num'); if(n) n.textContent=isShoot?`D${i+1}`:`${i+1}`;
+  });
+}
+
+/* ════════════════════════════════
+   COLLECT
+════════════════════════════════ */
+function collectScripts() {
+  return Array.from(document.getElementById('scripts-list').children).map(row=>{
+    const lines=row.querySelectorAll('.row-line');
+    return {name:lines[0].querySelector('input').value.trim(), status:lines[0].querySelector('select').value, dueDate:lines[1].querySelectorAll('input')[0].value, dueTime:lines[1].querySelectorAll('input')[1].value};
+  });
+}
+function collectLocations() {
+  return Array.from(document.getElementById('locations-list').children).map(row=>{
+    const lines=row.querySelectorAll('.row-line'); const top=lines[0].querySelectorAll('input');
+    return {place:top[0].value.trim(), date:top[1].value, content:lines[1].querySelector('input').value.trim()};
+  });
+}
+function collectProps() {
+  return Array.from(document.getElementById('props-list').children).map(row=>{
+    const lines=row.querySelectorAll('.row-line'); const top=lines[0].querySelectorAll('input');
+    return {name:top[0].value.trim(), preparer:top[1].value.trim(), refUrl:lines[1].querySelector('input').value.trim()};
+  });
+}
+function collectShootDates() {
+  return Array.from(document.getElementById('shoot-dates-list').children).map(row=>{
+    const inputs=row.querySelectorAll('input'); return {date:inputs[0].value, note:inputs[1].value.trim()};
+  }).filter(sd=>sd.date);
+}
+function collectPostItems() {
+  return Array.from(document.getElementById('post-list').children).map(row=>{
+    const lines=row.querySelectorAll('.row-line');
+    return {name:lines[0].querySelector('input').value.trim(), status:lines[0].querySelector('select').value, dueDate:lines[1].querySelectorAll('input')[0].value, dueTime:lines[1].querySelectorAll('input')[1].value};
+  });
+}
+
+/* ════════════════════════════════
+   MODAL
+════════════════════════════════ */
+function openAddModal() {
+  editingId=null; document.getElementById('modal-title').textContent='新增專案'; clearForm();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function openEditModal(i) {
+  editingId=i; const p=projects[i]; document.getElementById('modal-title').textContent='編輯專案';
+  document.getElementById('f-name').value=p.name; document.getElementById('f-client').value=p.client||'';
+  document.getElementById('f-quote-status').value=p.finance.quoteStatus; document.getElementById('f-quote-amount').value=p.finance.quoteAmount||'';
+  document.getElementById('f-po-status').value=p.finance.poStatus; document.getElementById('f-po-amount').value=p.finance.poAmount||'';
+  document.getElementById('f-po-number').value=p.finance.poNumber||''; document.getElementById('f-invoice-status').value=p.finance.invoiceStatus;
+  document.getElementById('scripts-list').innerHTML=''; (p.scripts||[]).forEach(s=>addScriptRow(s.name,s.status,s.dueDate||'',s.dueTime||''));
+  document.getElementById('locations-list').innerHTML=''; (p.locations||[]).forEach(l=>addLocationRow(l.place,l.date,l.content));
+  document.getElementById('props-list').innerHTML=''; (p.props||[]).forEach(pr=>addPropRow(pr.name,pr.preparer,pr.refUrl));
+  document.getElementById('shoot-dates-list').innerHTML=''; (p.shootDates||[]).forEach(sd=>addShootDateRow(sd.date,sd.note));
+  document.getElementById('post-list').innerHTML=''; (p.postItems||[]).forEach(item=>addPostRow(item.name,item.status,item.dueDate||'',item.dueTime||''));
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function clearForm() {
+  ['f-name','f-client','f-quote-amount','f-po-amount','f-po-number'].forEach(id=>document.getElementById(id).value='');
+  ['f-quote-status','f-po-status','f-invoice-status'].forEach(id=>document.getElementById(id).value='none');
+  ['scripts-list','locations-list','props-list','shoot-dates-list','post-list'].forEach(id=>document.getElementById(id).innerHTML='');
+}
+function saveProject() {
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('請輸入專案名稱');return;}
+  const p={name, client:document.getElementById('f-client').value.trim(),
+    scripts:collectScripts(), locations:collectLocations(), props:collectProps(),
+    shootDates:collectShootDates(), postItems:collectPostItems(),
+    finance:{quoteStatus:document.getElementById('f-quote-status').value, quoteAmount:document.getElementById('f-quote-amount').value,
+      poStatus:document.getElementById('f-po-status').value, poAmount:document.getElementById('f-po-amount').value,
+      poNumber:document.getElementById('f-po-number').value.trim(), invoiceStatus:document.getElementById('f-invoice-status').value}};
+  if(editingId!==null){projects[editingId]=p;}else{projects.push(p);}
+  save(); closeModal(); renderProjects();
+}
+function deleteProject(i) {
+  if(!confirm(`確定要刪除「${projects[i].name}」嗎？`))return;
+  projects.splice(i,1); save(); renderProjects();
+}
+
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+/* ── Init ── */
+renderProjects();
+</script>
+</body>
+</html>
